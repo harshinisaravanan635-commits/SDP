@@ -1,0 +1,204 @@
+package com.example.foodbillsrel;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    public DatabaseHelper(Context context) {
+        super(context, "FoodBillRel.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE Bills (" +
+                "Bill_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "Customer_Name TEXT, " +
+                "Item_Details TEXT, " +
+                "Tax_Amount REAL, " +
+                "Total_Bill REAL" +
+                ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS Bills");
+        onCreate(db);
+    }
+
+    // Helper method to insert a sample bill record
+    public void insertBill(String customerName, String itemDetails, double taxAmount, double totalBill) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Customer_Name", customerName);
+        values.put("Item_Details", itemDetails);
+        values.put("Tax_Amount", taxAmount);
+        values.put("Total_Bill", totalBill);
+        db.insert("Bills", null, values);
+        db.close();
+    }
+
+    // READ: Get all bills
+    public Cursor getAllBills() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM Bills", null);
+    }
+
+    // DELETE: Delete bill by Bill_ID
+    public void deleteBill(int billId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete("Bills", "Bill_ID = ?", new String[]{String.valueOf(billId)});
+        db.close();
+    }
+}
+
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bill Breakdown Screen"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etBillId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvTitle"
+        android:hint="Enter Bill ID to Delete"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etBillId"
+        android:text="Delete Bill"
+        android:layout_marginTop="5dp"/>
+
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnDelete"
+        android:text="View Bills" />
+
+    <Button
+        android:id="@+id/btnAddSample"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnView"
+        android:text="Add Sample Bill" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnAddSample"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp" />
+    </ScrollView>
+
+</RelativeLayout>
+
+
+package com.example.foodbillsrel;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText etBillId;
+    Button btnDelete, btnView, btnAddSample;
+    TextView txtResult;
+    DatabaseHelper dbHelper;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        etBillId = findViewById(R.id.etBillId);
+        btnDelete = findViewById(R.id.btnDelete);
+        btnView = findViewById(R.id.btnView);
+        btnAddSample = findViewById(R.id.btnAddSample);
+        txtResult = findViewById(R.id.txtResult);
+
+        dbHelper = new DatabaseHelper(this);
+
+        // READ & DISPLAY BILLS
+        btnView.setOnClickListener(v -> displayBills());
+
+        // DELETE BILL
+        btnDelete.setOnClickListener(v -> {
+            String idStr = etBillId.getText().toString();
+            if (!idStr.isEmpty()) {
+                int billId = Integer.parseInt(idStr);
+                dbHelper.deleteBill(billId);
+                Toast.makeText(this, "Bill Deleted Successfully", Toast.LENGTH_SHORT).show();
+                etBillId.setText("");
+                displayBills();
+            } else {
+                Toast.makeText(this, "Please enter a Bill ID", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ADD SAMPLE BILL
+        btnAddSample.setOnClickListener(v -> {
+            dbHelper.insertBill("Charlie Brown", "Steak, Fries, Soda", 4.25, 34.25);
+            Toast.makeText(this, "Sample Bill Added", Toast.LENGTH_SHORT).show();
+            displayBills();
+        });
+    }
+
+    private void displayBills() {
+        Cursor cursor = dbHelper.getAllBills();
+        if (cursor.getCount() == 0) {
+            txtResult.setText("No bills found.");
+            cursor.close();
+            return;
+        }
+
+        StringBuilder data = new StringBuilder();
+        while (cursor.moveToNext()) {
+            int billId = cursor.getInt(0);
+            String name = cursor.getString(1);
+            String items = cursor.getString(2);
+            double tax = cursor.getDouble(3);
+            double total = cursor.getDouble(4);
+
+            data.append("Bill ID: ").append(billId).append("\n");
+            data.append("Customer: ").append(name).append("\n");
+            data.append("Items: ").append(items).append("\n");
+            data.append("Tax Amount: $").append(tax).append("\n");
+            data.append("Total Bill: $").append(total).append("\n");
+            data.append("-----------------------------------\n");
+        }
+        cursor.close();
+        txtResult.setText(data.toString());
+    }
+}
