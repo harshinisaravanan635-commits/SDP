@@ -1,0 +1,249 @@
+package com.example.eventbookingrel;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    public DatabaseHelper(Context context) {
+        super(context, "EventBookingRel.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE Bookings (" +
+                "Booking_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "Event_Name TEXT, " +
+                "Customer_Name TEXT, " +
+                "Ticket_Quantity INTEGER, " +
+                "Total_Price REAL" +
+                ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS Bookings");
+        onCreate(db);
+    }
+
+    // Helper method to insert a sample booking record
+    public void insertBooking(String eventName, String customerName, int ticketQuantity, double totalPrice) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Event_Name", eventName);
+        values.put("Customer_Name", customerName);
+        values.put("Ticket_Quantity", ticketQuantity);
+        values.put("Total_Price", totalPrice);
+        db.insert("Bookings", null, values);
+        db.close();
+    }
+
+    // READ: Get all bookings
+    public Cursor getAllBookings() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM Bookings", null);
+    }
+
+    // UPDATE: Update booking record by Booking_ID
+    public void updateBooking(int bookingId, String eventName, String customerName, int ticketQuantity, double totalPrice) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Event_Name", eventName);
+        values.put("Customer_Name", customerName);
+        values.put("Ticket_Quantity", ticketQuantity);
+        values.put("Total_Price", totalPrice);
+        db.update("Bookings", values, "Booking_ID = ?", new String[]{String.valueOf(bookingId)});
+        db.close();
+    }
+}
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ticket Booking Screen"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etBookingId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvTitle"
+        android:hint="Enter Booking ID (for Update)"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/etEventName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etBookingId"
+        android:hint="Enter Event Name" />
+
+    <EditText
+        android:id="@+id/etCustomerName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etEventName"
+        android:hint="Enter Customer Name" />
+
+    <EditText
+        android:id="@+id/etTicketQuantity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etCustomerName"
+        android:hint="Enter Ticket Quantity"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/etTotalPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etTicketQuantity"
+        android:hint="Enter Total Price"
+        android:inputType="numberDecimal" />
+
+    <Button
+        android:id="@+id/btnUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etTotalPrice"
+        android:text="Update Booking"
+        android:layout_marginTop="5dp"/>
+
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnUpdate"
+        android:text="View Bookings" />
+
+    <Button
+        android:id="@+id/btnAddSample"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnView"
+        android:text="Add Sample Booking" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnAddSample"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp" />
+    </ScrollView>
+
+</RelativeLayout>
+
+package com.example.eventbookingrel;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText etBookingId, etEventName, etCustomerName, etTicketQuantity, etTotalPrice;
+    Button btnUpdate, btnView, btnAddSample;
+    TextView txtResult;
+    DatabaseHelper dbHelper;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        etBookingId = findViewById(R.id.etBookingId);
+        etEventName = findViewById(R.id.etEventName);
+        etCustomerName = findViewById(R.id.etCustomerName);
+        etTicketQuantity = findViewById(R.id.etTicketQuantity);
+        etTotalPrice = findViewById(R.id.etTotalPrice);
+
+        btnUpdate = findViewById(R.id.btnUpdate);
+        btnView = findViewById(R.id.btnView);
+        btnAddSample = findViewById(R.id.btnAddSample);
+        txtResult = findViewById(R.id.txtResult);
+
+        dbHelper = new DatabaseHelper(this);
+
+        // READ & DISPLAY BOOKINGS
+        btnView.setOnClickListener(v -> displayBookings());
+
+        // UPDATE BOOKING
+        btnUpdate.setOnClickListener(v -> {
+            String idStr = etBookingId.getText().toString();
+            String eventName = etEventName.getText().toString();
+            String customerName = etCustomerName.getText().toString();
+            String qtyStr = etTicketQuantity.getText().toString();
+            String priceStr = etTotalPrice.getText().toString();
+
+            if (!idStr.isEmpty() && !eventName.isEmpty() && !qtyStr.isEmpty() && !priceStr.isEmpty()) {
+                int bookingId = Integer.parseInt(idStr);
+                int quantity = Integer.parseInt(qtyStr);
+                double price = Double.parseDouble(priceStr);
+
+                dbHelper.updateBooking(bookingId, eventName, customerName, quantity, price);
+                Toast.makeText(this, "Booking Updated Successfully", Toast.LENGTH_SHORT).show();
+                displayBookings();
+            } else {
+                Toast.makeText(this, "Please enter Booking ID, Event Name, Quantity, and Price", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ADD SAMPLE BOOKING
+        btnAddSample.setOnClickListener(v -> {
+            dbHelper.insertBooking("Rock Concert", "Diana Prince", 2, 120.00);
+            Toast.makeText(this, "Sample Booking Added", Toast.LENGTH_SHORT).show();
+            displayBookings();
+        });
+    }
+
+    private void displayBookings() {
+        Cursor cursor = dbHelper.getAllBookings();
+        if (cursor.getCount() == 0) {
+            txtResult.setText("No bookings found.");
+            cursor.close();
+            return;
+        }
+
+        StringBuilder data = new StringBuilder();
+        while (cursor.moveToNext()) {
+            int bookingId = cursor.getInt(0);
+            String event = cursor.getString(1);
+            String customer = cursor.getString(2);
+            int quantity = cursor.getInt(3);
+            double price = cursor.getDouble(4);
+
+            data.append("Booking ID: ").append(bookingId).append("\n");
+            data.append("Event: ").append(event).append("\n");
+            data.append("Customer: ").append(customer).append("\n");
+            data.append("Quantity: ").append(quantity).append("\n");
+            data.append("Total Price: $").append(price).append("\n");
+            data.append("-----------------------------------\n");
+        }
+        cursor.close();
+        txtResult.setText(data.toString());
+    }
+}
