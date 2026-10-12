@@ -1,0 +1,200 @@
+package com.example.foodordering;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    public DatabaseHelper(Context context) {
+        super(context, "FoodOrder.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE Orders (" +
+                "Order_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "Customer_Name TEXT, " +
+                "Delivery_Address TEXT, " +
+                "Item_List TEXT, " +
+                "Payment_Amount REAL" +
+                ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS Orders");
+        onCreate(db);
+    }
+
+    // Helper method to insert sample order records
+    public void insertOrder(String customerName, String deliveryAddress, String itemList, double paymentAmount) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Customer_Name", customerName);
+        values.put("Delivery_Address", deliveryAddress);
+        values.put("Item_List", itemList);
+        values.put("Payment_Amount", paymentAmount);
+        db.insert("Orders", null, values);
+        db.close();
+    }
+
+    // READ: Get all orders
+    public Cursor getAllOrders() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM Orders", null);
+    }
+
+    // DELETE: Delete order by Order_ID
+    public void deleteOrder(int orderId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete("Orders", "Order_ID = ?", new String[]{String.valueOf(orderId)});
+        db.close();
+    }
+}
+
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Food Order Summary"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="15dp" />
+
+    <!-- Order ID Input for Deleting -->
+    <EditText
+        android:id="@+id/etOrderId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Order ID to Delete"
+        android:inputType="number" />
+
+    <!-- Buttons -->
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Delete Order" />
+
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="View / Refresh Orders" />
+
+    <Button
+        android:id="@+id/btnAddSample"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Sample Order" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15dp">
+
+        <TextView
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" />
+    </ScrollView>
+
+</LinearLayout>
+
+
+package com.example.foodordering;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText etOrderId;
+    Button btnDelete, btnView, btnAddSample;
+    TextView txtResult;
+    DatabaseHelper dbHelper;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        etOrderId = findViewById(R.id.etOrderId);
+        btnDelete = findViewById(R.id.btnDelete);
+        btnView = findViewById(R.id.btnView);
+        btnAddSample = findViewById(R.id.btnAddSample);
+        txtResult = findViewById(R.id.txtResult);
+
+        dbHelper = new DatabaseHelper(this);
+
+        // READ & DISPLAY ORDERS
+        btnView.setOnClickListener(v -> displayOrders());
+
+        // DELETE ORDER
+        btnDelete.setOnClickListener(v -> {
+            String idStr = etOrderId.getText().toString();
+            if (!idStr.isEmpty()) {
+                int orderId = Integer.parseInt(idStr);
+                dbHelper.deleteOrder(orderId);
+                Toast.makeText(this, "Order Deleted Successfully", Toast.LENGTH_SHORT).show();
+                etOrderId.setText("");
+                displayOrders(); // Refresh list after deletion
+            } else {
+                Toast.makeText(this, "Please enter an Order ID", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ADD SAMPLE ORDER (To populate data for testing)
+        btnAddSample.setOnClickListener(v -> {
+            dbHelper.insertOrder("John Doe", "123 Main St", "Pizza, Coke", 24.99);
+            Toast.makeText(this, "Sample Order Added", Toast.LENGTH_SHORT).show();
+            displayOrders();
+        });
+    }
+
+    private void displayOrders() {
+        Cursor cursor = dbHelper.getAllOrders();
+        if (cursor.getCount() == 0) {
+            txtResult.setText("No orders found.");
+            cursor.close();
+            return;
+        }
+
+        StringBuilder data = new StringBuilder();
+        while (cursor.moveToNext()) {
+            int orderId = cursor.getInt(0);
+            String name = cursor.getString(1);
+            String address = cursor.getString(2);
+            String items = cursor.getString(3);
+            double amount = cursor.getDouble(4);
+
+            data.append("Order ID: ").append(orderId).append("\n");
+            data.append("Customer Name: ").append(name).append("\n");
+            data.append("Delivery Address: ").append(address).append("\n");
+            data.append("Items: ").append(items).append("\n");
+            data.append("Payment Amount: $").append(amount).append("\n");
+            data.append("-----------------------------------\n");
+        }
+        cursor.close();
+        txtResult.setText(data.toString());
+    }
+}
