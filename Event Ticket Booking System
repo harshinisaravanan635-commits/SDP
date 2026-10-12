@@ -1,0 +1,217 @@
+package com.example.eventbooking;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    public DatabaseHelper(Context context) {
+        super(context, "EventBooking.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE Bookings (" +
+                "Booking_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "Event_Name TEXT, " +
+                "Customer_Name TEXT, " +
+                "Ticket_Quantity INTEGER, " +
+                "Total_Price REAL" +
+                ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS Bookings");
+        onCreate(db);
+    }
+
+    // INSERT: Insert a new booking record
+    public void insertBooking(String eventName, String customerName, int ticketQuantity, double totalPrice) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Event_Name", eventName);
+        values.put("Customer_Name", customerName);
+        values.put("Ticket_Quantity", ticketQuantity);
+        values.put("Total_Price", totalPrice);
+        db.insert("Bookings", null, values);
+        db.close();
+    }
+
+    // READ: Get all bookings
+    public Cursor getAllBookings() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM Bookings", null);
+    }
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout 
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Event Ticket Booking"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="15dp" />
+
+        <!-- Event Name -->
+        <EditText
+            android:id="@+id/etEventName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Event Name" />
+
+        <!-- Customer Name -->
+        <EditText
+            android:id="@+id/etCustomerName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Customer Name" />
+
+        <!-- Ticket Quantity -->
+        <EditText
+            android:id="@+id/etTicketQuantity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Ticket Quantity"
+            android:inputType="number" />
+
+        <!-- Total Price -->
+        <EditText
+            android:id="@+id/etTotalPrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Total Price"
+            android:inputType="numberDecimal" />
+
+        <!-- Save Button -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Book Ticket (Insert)"
+            android:layout_marginTop="10dp" />
+
+        <!-- View Button -->
+        <Button
+            android:id="@+id/btnView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="View Bookings (Read)" />
+
+        <!-- Result Display -->
+        <TextView
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:layout_marginTop="15dp" />
+
+    </LinearLayout>
+</ScrollView>
+
+
+package com.example.eventbooking;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText etEventName, etCustomerName, etTicketQuantity, etTotalPrice;
+    Button btnSave, btnView;
+    TextView txtResult;
+    DatabaseHelper dbHelper;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        etEventName = findViewById(R.id.etEventName);
+        etCustomerName = findViewById(R.id.etCustomerName);
+        etTicketQuantity = findViewById(R.id.etTicketQuantity);
+        etTotalPrice = findViewById(R.id.etTotalPrice);
+        btnSave = findViewById(R.id.btnSave);
+        btnView = findViewById(R.id.btnView);
+        txtResult = findViewById(R.id.txtResult);
+
+        dbHelper = new DatabaseHelper(this);
+
+        // INSERT BOOKING
+        btnSave.setOnClickListener(v -> {
+            String eventName = etEventName.getText().toString();
+            String customerName = etCustomerName.getText().toString();
+            String qtyStr = etTicketQuantity.getText().toString();
+            String priceStr = etTotalPrice.getText().toString();
+
+            if (!eventName.isEmpty() && !customerName.isEmpty() && !qtyStr.isEmpty() && !priceStr.isEmpty()) {
+                int quantity = Integer.parseInt(qtyStr);
+                double price = Double.parseDouble(priceStr);
+
+                dbHelper.insertBooking(eventName, customerName, quantity, price);
+                Toast.makeText(this, "Ticket Booked Successfully", Toast.LENGTH_SHORT).show();
+
+                etEventName.setText("");
+                etCustomerName.setText("");
+                etTicketQuantity.setText("");
+                etTotalPrice.setText("");
+                displayBookings();
+            } else {
+                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // READ & DISPLAY BOOKINGS
+        btnView.setOnClickListener(v -> displayBookings());
+    }
+
+    private void displayBookings() {
+        Cursor cursor = dbHelper.getAllBookings();
+        if (cursor.getCount() == 0) {
+            txtResult.setText("No bookings found.");
+            cursor.close();
+            return;
+        }
+
+        StringBuilder data = new StringBuilder();
+        while (cursor.moveToNext()) {
+            int bookingId = cursor.getInt(0);
+            String event = cursor.getString(1);
+            String customer = cursor.getString(2);
+            int quantity = cursor.getInt(3);
+            double price = cursor.getDouble(4);
+
+            data.append("Booking ID: ").append(bookingId).append("\n");
+            data.append("Event: ").append(event).append("\n");
+            data.append("Customer: ").append(customer).append("\n");
+            data.append("Quantity: ").append(quantity).append("\n");
+            data.append("Total Price: $").append(price).append("\n");
+            data.append("-----------------------------------\n");
+        }
+        cursor.close();
+        txtResult.setText(data.toString());
+    }
+}
+}
