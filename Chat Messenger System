@@ -1,0 +1,201 @@
+package com.example.chatmessenger;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+
+    public DatabaseHelper(Context context) {
+        super(context, "ChatMessenger.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE Messages (" +
+                "Message_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "Sender_Name TEXT, " +
+                "Receiver_Name TEXT, " +
+                "Message_Text TEXT, " +
+                "Timestamp TEXT" +
+                ");");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS Messages");
+        onCreate(db);
+    }
+
+    // Helper method to insert a sample message record
+    public void insertMessage(String senderName, String receiverName, String messageText, String timestamp) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("Sender_Name", senderName);
+        values.put("Receiver_Name", receiverName);
+        values.put("Message_Text", messageText);
+        values.put("Timestamp", timestamp);
+        db.insert("Messages", null, values);
+        db.close();
+    }
+
+    // READ: Get all messages
+    public Cursor getAllMessages() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM Messages", null);
+    }
+
+    // DELETE: Delete message by Message_ID
+    public void deleteMessage(int messageId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete("Messages", "Message_ID = ?", new String[]{String.valueOf(messageId)});
+        db.close();
+    }
+}
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chat History Screen"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/etMessageId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvTitle"
+        android:hint="Enter Message ID to Delete"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/etMessageId"
+        android:text="Delete Message"
+        android:layout_marginTop="5dp"/>
+
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnDelete"
+        android:text="View Chat History" />
+
+    <Button
+        android:id="@+id/btnAddSample"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btnView"
+        android:text="Add Sample Message" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnAddSample"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp" />
+    </ScrollView>
+
+</RelativeLayout>
+
+package com.example.chatmessenger;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText etMessageId;
+    Button btnDelete, btnView, btnAddSample;
+    TextView txtResult;
+    DatabaseHelper dbHelper;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        etMessageId = findViewById(R.id.etMessageId);
+        btnDelete = findViewById(R.id.btnDelete);
+        btnView = findViewById(R.id.btnView);
+        btnAddSample = findViewById(R.id.btnAddSample);
+        txtResult = findViewById(R.id.txtResult);
+
+        dbHelper = new DatabaseHelper(this);
+
+        // READ & DISPLAY MESSAGES
+        btnView.setOnClickListener(v -> displayMessages());
+
+        // DELETE MESSAGE
+        btnDelete.setOnClickListener(v -> {
+            String idStr = etMessageId.getText().toString();
+            if (!idStr.isEmpty()) {
+                int messageId = Integer.parseInt(idStr);
+                dbHelper.deleteMessage(messageId);
+                Toast.makeText(this, "Message Deleted Successfully", Toast.LENGTH_SHORT).show();
+                etMessageId.setText("");
+                displayMessages();
+            } else {
+                Toast.makeText(this, "Please enter a Message ID", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // ADD SAMPLE MESSAGE
+        btnAddSample.setOnClickListener(v -> {
+            dbHelper.insertMessage("Alice", "Bob", "Hello, how are you?", "10:30 AM");
+            Toast.makeText(this, "Sample Message Added", Toast.LENGTH_SHORT).show();
+            displayMessages();
+        });
+    }
+
+    private void displayMessages() {
+        Cursor cursor = dbHelper.getAllMessages();
+        if (cursor.getCount() == 0) {
+            txtResult.setText("No messages found.");
+            cursor.close();
+            return;
+        }
+
+        StringBuilder data = new StringBuilder();
+        while (cursor.moveToNext()) {
+            int messageId = cursor.getInt(0);
+            String sender = cursor.getString(1);
+            String receiver = cursor.getString(2);
+            String messageText = cursor.getString(3);
+            String timestamp = cursor.getString(4);
+
+            data.append("Message ID: ").append(messageId).append("\n");
+            data.append("From: ").append(sender).append(" | To: ").append(receiver).append("\n");
+            data.append("Text: ").append(messageText).append("\n");
+            data.append("Time: ").append(timestamp).append("\n");
+            data.append("-----------------------------------\n");
+        }
+        cursor.close();
+        txtResult.setText(data.toString());
+    }
+}
+
